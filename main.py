@@ -135,9 +135,12 @@ class Crypter(QMainWindow, crypter):
             self.hide()
             zf = zipfile.ZipFile("data.zip", "w", compression=zipfile.ZIP_DEFLATED)
             for dirname, subdirs, files in os.walk(direc):
-                zf.write(dirname)
                 for filename in files:
-                    zf.write(os.path.join(dirname, filename))
+                    if filename.endswith("data.zip"):
+                        continue
+                    zf.write(os.path.join(dirname, filename),
+                             arcname=os.path.join(dirname, filename).split("/")[-1].replace('\\',
+                                                                                            '/'))
             zf.close()
 
             m.change_val(1, 2)  # Изменить значение PROGRESS BAR
@@ -150,6 +153,7 @@ class Crypter(QMainWindow, crypter):
 
             m.change_val(2, 2)  # Изменить значение PROGRESS BAR
             QApplication.processEvents()
+            m.close()
 
             res_fname = QFileDialog.getSaveFileName(
                 self, "Результат", self.fname,

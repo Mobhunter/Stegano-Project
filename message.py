@@ -14,12 +14,23 @@ class Ui_Form(object):
     def setupUi(self, Form):
         Form.setObjectName("Form")
         Form.resize(400, 132)
-        self.label = QtWidgets.QLabel(Form)
-        self.label.setGeometry(QtCore.QRect(16, 12, 361, 111))
+        self.verticalLayoutWidget = QtWidgets.QWidget(Form)
+        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 10, 381, 111))
+        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.label = QtWidgets.QLabel(self.verticalLayoutWidget)
         font = QtGui.QFont()
-        font.setPointSize(14)
+        font.setFamily("MS Shell Dlg 2")
+        font.setPointSize(11)
         self.label.setFont(font)
         self.label.setObjectName("label")
+        self.verticalLayout.addWidget(self.label)
+        self.progressBar = QtWidgets.QProgressBar(self.verticalLayoutWidget)
+        self.progressBar.setProperty("value", 0)
+        self.progressBar.setObjectName("progressBar")
+        self.verticalLayout.addWidget(self.progressBar)
 
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
@@ -27,7 +38,4 @@ class Ui_Form(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "РАБОТАЕМ"))
-        self.label.setText(_translate("Form", "Пожалуйста подождите.\n"
-                                              "Процесс может занять некоторое время. \n"
-                                              "При закрытии этого окна\n"
-                                              "процесс завершится."))
+        self.label.setText(_translate("Form", "Пожалуйста подождите."))

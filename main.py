@@ -1,7 +1,10 @@
 import sys
+import os
+import zipfile
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QWidget, QFileDialog
 from PyQt5.QtWidgets import QMessageBox
+from PyQt5 import QtCore
 from PIL import Image
 from message import Ui_Form as message
 from crypter import Ui_MainWindow as crypter
@@ -10,6 +13,7 @@ from decrypter import Ui_MainWindow as decrypter
 
 class Crypter(QMainWindow, crypter):
     """Окно шифрования"""
+
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -17,7 +21,7 @@ class Crypter(QMainWindow, crypter):
         self.show()
 
     def initUI(self):
-        self.fname = None
+        self.fname = ""
         self.pushButton.clicked.connect(self.picture)
         self.pushButton_2.clicked.connect(self.crypt)
         self.buttonGroup.buttonClicked.connect(self.radioButtonClicked)
@@ -41,15 +45,18 @@ class Crypter(QMainWindow, crypter):
         """Функция шифрования
 Вызывается при нашатии на кнопку 'Зашифровать'"""
         try:
-            self.text_crypt()
+            if self.buttonGroup.checkedButton().text().startswith("Текст"):
+                self.text_crypt()
+            else:
+                self.files_crypt()
         except:
             # Вывод ошибки
-            QMessageBox.critical(self, "Ошибка", "\n".join(map(str, sys.exc_info())),
+            QMessageBox.critical(self, "Ошибка", "\n".join(map(repr, sys.exc_info())),
                                  QMessageBox.Ok)
             self.show()
 
     def text_crypt(self):
-        """Шифрует картинку"""
+        """Шифрует текстовое сообщение в коддировке 'KOI8-R' картинку"""
         # Проверка на то, что картинка существует
         try:
             img = Image.open(self.fname)
@@ -70,6 +77,10 @@ class Crypter(QMainWindow, crypter):
 
             # Вставляем биты в пиксели
             for i in range(x):
+
+                m.change_val(i, x)  # Изменить значение PROGRESS BAR
+                QApplication.processEvents()
+
                 for j in range(0, y, 3):
                     if not end_flag:
                         # Проверка на конец заданной строки
@@ -77,18 +88,19 @@ class Crypter(QMainWindow, crypter):
                             lttr = bin(next(text))[2:].zfill(8)  # Буква из textEdit в бинарном виде
                         except StopIteration:
                             end_flag = True
+                            lttr = "0" * 8
                     else:  # Если кончилась строка, то заполняем пиксели нулями
                         lttr = "0" * 8
                     # Так как в 3 пикселях 9 бит, а нам нужно восемь
                     # Длинная проверка в range, чтобы записывалось сообщение, если пикселей меньше
-# (Исправлю на предупреждение о скоращении количества символов заранее)
+                    # (Исправлю на предупреждение о сокращении количества символов заранее)
                     for k in range(j, (j + 3 if j + 3 <= y - 1 else j)):
                         pixel = []
                         for color in range(3):
                             if (k - j) * 3 + color != 8:
                                 # Запись бита в пиксели
                                 byte = int(lttr[(k - j) * 3 + color])
-                                pixels_byte = int(bin(pixels[i, (k - j)][color])[-1])
+                                pixels_byte = int(bin(pixels[i, k][color])[-1])
                                 if byte == 1 and pixels_byte == 0:
                                     pixel.append(pixels[i, k][color] + 1)
                                 elif byte == 0 and pixels_byte == 1:
@@ -99,12 +111,53 @@ class Crypter(QMainWindow, crypter):
                                 pixel.append(pixels[i, k][2])
                         pixels[i, k] = tuple(pixel)
             # Выбор результирующей картинки
+            self.show()
             m.close()
             res_fname = QFileDialog.getSaveFileName(
                 self, "Результат", self.fname,
-                f"Картинка (*.{self.fname.split('/')[-1].split('.')[-1]})"
-            )
-            img.save(res_fname)
+                f"Картинка (*.{self.fname[-3:]})"
+            )[0]
+            if res_fname:
+                img.save(res_fname)
+
+    def files_crypt(self):
+        if self.fname[-3:] not in ("png", "jpg", "bmp"):
+            QMessageBox.critical(self, "Ошибка", "Вы не выбрали картинку!", QMessageBox.Ok)
+        elif self.fname.endswith("bmp"):
+            QMessageBox.critical(self, "Ошибка",
+                                 "Для данного вида шифрования нельзя использовать .bmp",
+                                 QMessageBox.Ok)
+        else:
+            direc = \
+                QFileDialog.getExistingDirectory(self, "Выберете папку с файлами", "")
+            m = Message()
+            m.show()
+            self.hide()
+            zf = zipfile.ZipFile("data.zip", "w", compression=zipfile.ZIP_DEFLATED)
+            for dirname, subdirs, files in os.walk(direc):
+                zf.write(dirname)
+                for filename in files:
+                    zf.write(os.path.join(dirname, filename))
+            zf.close()
+
+            m.change_val(1, 2)  # Изменить значение PROGRESS BAR
+            QApplication.processEvents()
+
+            with open("data.zip", "rb") as zip_:
+                with open(self.fname, "rb") as img:
+                    res_img = img.read() + zip_.read()
+            os.remove("data.zip")
+
+            m.change_val(2, 2)  # Изменить значение PROGRESS BAR
+            QApplication.processEvents()
+
+            res_fname = QFileDialog.getSaveFileName(
+                self, "Результат", self.fname,
+                f"Картинка (*.{self.fname[-3:]})"
+            )[0]
+            if res_fname:
+                with open(res_fname, "wb") as file:
+                    file.write(res_img)
 
 
 class Decrypter(QMainWindow, decrypter):
@@ -122,6 +175,10 @@ class Message(QWidget, message):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+
+    def change_val(self, x, x_size):
+        self.progressBar.setValue(int(x / x_size * 100))
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import zipfile
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QWidget, QFileDialog
 from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtGui import QImage, QIcon
 from PyQt5 import QtCore
 from PIL import Image
 from message import Ui_Form as message
@@ -56,7 +57,7 @@ class Crypter(QMainWindow, crypter):
             self.show()
 
     def text_crypt(self):
-        """Шифрует текстовое сообщение в коддировке 'KOI8-R' картинку"""
+        """Шифрует текстовое сообщение в коддировке 'koi8-r' картинку"""
         # Проверка на то, что картинка существует
         try:
             img = Image.open(self.fname)
@@ -72,7 +73,7 @@ class Crypter(QMainWindow, crypter):
             pixels = img.load()
             x, y = img.size
 
-            text = iter(self.textEdit.toPlainText().encode("KOI8-R"))  # Текстовое сообщение
+            text = iter(self.textEdit.toPlainText().encode("koi8-r"))
             end_flag = False  # Нужен, чтобы вставлять нули, когда кончится текст
 
             # Вставляем биты в пиксели
@@ -88,12 +89,11 @@ class Crypter(QMainWindow, crypter):
                             lttr = bin(next(text))[2:].zfill(8)  # Буква из textEdit в бинарном виде
                         except StopIteration:
                             end_flag = True
-                            lttr = "0" * 8
-                    else:  # Если кончилась строка, то заполняем пиксели нулями
-                        lttr = "0" * 8
+                            lttr = bin(" ".encode("koi8-r")[0])[2:].zfill(8)
+                    else:  # Если кончилась строка, то заполняем пиксели Пробелами
+                        lttr = bin(" ".encode("koi8-r")[0])[2:].zfill(8)
                     # Так как в 3 пикселях 9 бит, а нам нужно восемь
                     # Длинная проверка в range, чтобы записывалось сообщение, если пикселей меньше
-                    # (Исправлю на предупреждение о сокращении количества символов заранее)
                     for k in range(j, (j + 3 if j + 3 <= y - 1 else j)):
                         pixel = []
                         for color in range(3):
@@ -114,7 +114,7 @@ class Crypter(QMainWindow, crypter):
             self.show()
             m.close()
             res_fname = QFileDialog.getSaveFileName(
-                self, "Результат", self.fname,
+                self, "Результат", "",
                 f"Картинка (*.{self.fname[-3:]})"
             )[0]
             if res_fname:
@@ -141,6 +141,10 @@ class Crypter(QMainWindow, crypter):
                     zf.write(os.path.join(dirname, filename),
                              arcname=os.path.join(dirname, filename).split("/")[-1].replace('\\',
                                                                                             '/'))
+            img = QImage(self.fname)
+            x, y = img.width(), img.height()
+
+            zf.setpassword(f"{x}{self.fname.split('/')[-1]}{y}".encode("koi8-r"))
             zf.close()
 
             m.change_val(1, 2)  # Изменить значение PROGRESS BAR
@@ -172,7 +176,71 @@ class Decrypter(QMainWindow, decrypter):
         self.show()
 
     def initUI(self):
-        pass
+        self.pushButton.clicked.connect(self.decrypt_image)
+
+    def decrypt_image(self):
+        try:
+            self.imgname = QFileDialog.getOpenFileName(self, "Выберете картинку", "",
+                                                       "Картинка (*.png *.jpg *.bmp)")[0]
+            if not self.imgname:
+                QMessageBox.critical(self, "Ошибка",
+                                     "Вы не выбрали картинку",
+                                     QMessageBox.Ok)
+            else:
+                try:
+                    zf = zipfile.ZipFile(self.imgname)
+                except zipfile.BadZipFile:
+                    self.do_lsb()
+                else:
+                    zf.close()
+                    self.do_zip()
+        except:
+            # Вывод ошибки
+            QMessageBox.critical(self, "Ошибка", "\n".join(map(repr, sys.exc_info())),
+                                 QMessageBox.Ok)
+
+    def do_lsb(self):
+        img = None
+        try:
+            img = Image.open(self.imgname)
+        except (FileNotFoundError, AttributeError):
+            if not self.imgname:
+                QMessageBox.critical(self, "Ошибка",
+                                     "Файл выбранный вами не является картинкой.",
+                                     QMessageBox.Ok)
+        if img:
+            m = Message()
+            m.show()
+            self.hide()
+
+            array = bytearray()
+            x, y = img.size
+            pixels = img.load()
+            for i in range(x):
+
+                m.change_val(i, x)  # Изменить значение PROGRESS BAR
+                QApplication.processEvents()
+
+                for j in range(0, y, 3):
+                    num = 0
+                    for k in range(j, (j + 3 if j + 3 <= y - 1 else j)):
+                        print(pixels[i, k])
+                        for color in range(3):
+                            if (k - j) * 3 + color != 8:
+                                bn = bin(pixels[i, k][color])
+                                n = 8 - (3 * (k - j) + color)
+                                num += int('0b' +
+                                           bn[-1].ljust(n, "0"),
+                                           base=2)
+                    array.append(num)
+
+            self.show()
+            m.close()
+            self.textBrowser.setPlainText(array.decode("koi8-r", 'ignore').rstrip())
+
+
+def do_zip(self):
+    array = bytearray()
 
 
 class Message(QWidget, message):

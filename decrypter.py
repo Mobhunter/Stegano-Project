@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'encrypter.ui'
+# Form implementation generated from reading ui file 'decrypter.ui'
 #
 # Created by: PyQt5 UI code generator 5.13.0
 #
@@ -26,7 +26,6 @@ class Ui_MainWindow(object):
         self.pushButton.setObjectName("pushButton")
         self.verticalLayout.addWidget(self.pushButton)
         self.textBrowser = QtWidgets.QTextBrowser(self.verticalLayoutWidget)
-        self.textBrowser.setEnabled(False)
         self.textBrowser.setObjectName("textBrowser")
         self.verticalLayout.addWidget(self.textBrowser)
         MainWindow.setCentralWidget(self.centralwidget)

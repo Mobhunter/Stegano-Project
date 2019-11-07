@@ -22,6 +22,7 @@ class Crypter(QMainWindow, crypter):
         self.show()
 
     def initUI(self):
+        self.setWindowIcon(QIcon("./icons/icon.ico"))
         self.fname = ""
         self.pushButton.clicked.connect(self.picture)
         self.pushButton_2.clicked.connect(self.crypt)
@@ -115,10 +116,10 @@ class Crypter(QMainWindow, crypter):
             m.close()
             res_fname = QFileDialog.getSaveFileName(
                 self, "Результат", "",
-                f"Картинка (*.{self.fname[-3:]})"
+                f"Картинка (*.png)"
             )[0]
             if res_fname:
-                img.save(res_fname)
+                img.save(res_fname, "PNG")
 
     def files_crypt(self):
         if self.fname[-3:] not in ("png", "jpg", "bmp"):
@@ -144,7 +145,7 @@ class Crypter(QMainWindow, crypter):
             img = QImage(self.fname)
             x, y = img.width(), img.height()
 
-            zf.setpassword(f"{x}{self.fname.split('/')[-1]}{y}".encode("koi8-r"))
+            zf.setpassword(f"{x}{self.fname.split('/')[-1]}{y}".encode("utf-8"))
             zf.close()
 
             m.change_val(1, 2)  # Изменить значение PROGRESS BAR
@@ -166,6 +167,7 @@ class Crypter(QMainWindow, crypter):
             if res_fname:
                 with open(res_fname, "wb") as file:
                     file.write(res_img)
+            self.show()
 
 
 class Decrypter(QMainWindow, decrypter):
@@ -176,9 +178,11 @@ class Decrypter(QMainWindow, decrypter):
         self.show()
 
     def initUI(self):
+        self.setWindowIcon(QIcon("./icons/icon.ico"))
         self.pushButton.clicked.connect(self.decrypt_image)
 
     def decrypt_image(self):
+        """Вызывается при нажатии кнопки расшифровать"""
         try:
             self.imgname = QFileDialog.getOpenFileName(self, "Выберете картинку", "",
                                                        "Картинка (*.png *.jpg *.bmp)")[0]
@@ -187,12 +191,13 @@ class Decrypter(QMainWindow, decrypter):
                                      "Вы не выбрали картинку",
                                      QMessageBox.Ok)
             else:
+                # Если можно распаковать - распаковывем, иначе LSBшим
                 try:
                     zf = zipfile.ZipFile(self.imgname)
+                    zf.close()
                 except zipfile.BadZipFile:
                     self.do_lsb()
                 else:
-                    zf.close()
                     self.do_zip()
         except:
             # Вывод ошибки
@@ -200,6 +205,7 @@ class Decrypter(QMainWindow, decrypter):
                                  QMessageBox.Ok)
 
     def do_lsb(self):
+        """Расшифровывает текстовое сообщение в формате koi8-r"""
         img = None
         try:
             img = Image.open(self.imgname)
@@ -224,7 +230,6 @@ class Decrypter(QMainWindow, decrypter):
                 for j in range(0, y, 3):
                     num = 0
                     for k in range(j, (j + 3 if j + 3 <= y - 1 else j)):
-                        print(pixels[i, k])
                         for color in range(3):
                             if (k - j) * 3 + color != 8:
                                 bn = bin(pixels[i, k][color])
@@ -238,16 +243,32 @@ class Decrypter(QMainWindow, decrypter):
             m.close()
             self.textBrowser.setPlainText(array.decode("koi8-r", 'ignore').rstrip())
 
+    def do_zip(self):
+        """Распаковать из картинки-архива"""
+        img = QImage(self.imgname)
+        x, y = img.width(), img.height()
 
-def do_zip(self):
-    array = bytearray()
+        direc = QFileDialog.getExistingDirectory(self, "Выберете папку для выгрузки", "")
+        if direc:
+            # Работа с окошками
+            m = Message()
+            m.show()
+            self.hide()
+            m.change_val(1, 2)
+            # Распаковываем архив
+            with zipfile.ZipFile(self.imgname) as zf:
+                zf.extractall(path=direc, pwd=f"{x}{self.imgname.split('/')[-1]}{y}".encode("utf-8"))
+            self.show()
+
 
 
 class Message(QWidget, message):
+    """Окно загрузки"""
     def __init__(self):
         super().__init__()
         self.setupUi(self)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowIcon(QIcon("./icons/icon.ico"))
 
     def change_val(self, x, x_size):
         self.progressBar.setValue(int(x / x_size * 100))
@@ -256,7 +277,9 @@ class Message(QWidget, message):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     # Выбор программмы
-    item, ok = QInputDialog.getItem(QWidget(), "Выберете программу", "Запустить",
+    w = QWidget()
+    w.setWindowIcon(QIcon("./icons/icon.ico"))
+    item, ok = QInputDialog.getItem(w, "Выберете программу", "Запустить",
                                     ("Шифровальщик", "Дешифровальщик"), 1, False)
     if ok:
         if item == "Дешифровальщик":

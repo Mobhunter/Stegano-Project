@@ -185,7 +185,7 @@ class Decrypter(QMainWindow, decrypter):
         """Вызывается при нажатии кнопки расшифровать"""
         try:
             self.imgname = QFileDialog.getOpenFileName(self, "Выберете картинку", "",
-                                                       "Картинка (*.png)")[0]
+                                                       "Картинка (*.png *.jpg *.bmp)")[0]
             if not self.imgname:
                 QMessageBox.critical(self, "Ошибка",
                                      "Вы не выбрали картинку",
